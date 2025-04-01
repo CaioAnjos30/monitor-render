@@ -9,7 +9,7 @@ import requests
 # 📂 Variável de ambiente com as credenciais Google
 GOOGLE_CREDENTIALS = os.getenv('GOOGLE_CREDENTIALS')
 
-# ✅ ID do arquivo XLSX no Google Drive
+# ✅ ID do arquivo no Google Drive
 ARQUIVO_ID = '1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT'
 
 # ✅ Token e chat ID do bot Telegram
@@ -41,20 +41,20 @@ def get_ultima_atividade():
     atividade = activities[0]
     atores = atividade.get("actors", [])
 
-    # ⏰ Converte horário UTC para Brasil
+    # ⏰ Converte horário UTC para Horário de Brasília
     horario_utc = atividade.get("timestamp")
     horario_dt = datetime.strptime(horario_utc, "%Y-%m-%dT%H:%M:%S.%fZ")
     fuso_brasil = pytz.timezone('America/Sao_Paulo')
     horario_brasil = horario_dt.replace(tzinfo=pytz.utc).astimezone(fuso_brasil)
     horario_formatado = horario_brasil.strftime("%d/%m/%Y %H:%M:%S")
 
-    # 👤 Tenta pegar o nome do usuário
+    # 👤 Tenta pegar o displayName ou permissionId
     nome = "Desconhecido"
     for ator in atores:
         user = ator.get("user", {})
         known_user = user.get("knownUser", {})
         if known_user:
-            nome = known_user.get("displayName", "Desconhecido")
+            nome = known_user.get("displayName") or known_user.get("personName", "Desconhecido")
             break
 
     return horario_formatado, nome
