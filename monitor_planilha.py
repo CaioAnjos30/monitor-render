@@ -31,3 +31,4 @@ def enviar_telegram(mensagem):
     url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
     resposta = requests.post(url, data={'chat_id': CHAT_ID, 'text': mensagem})
     print("✅ Telegram enviado!" if resposta.status_code == 200 else f"❌ Erro: {resposta.text}")
+
