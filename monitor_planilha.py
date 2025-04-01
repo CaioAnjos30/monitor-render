@@ -1,12 +1,15 @@
 import os
 import json
 import requests
+from datetime import datetime, timedelta, timezone
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from datetime import datetime
 
-ID_ARQUIVO = '1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT'  # <-- Coloque o ID do seu arquivo
+# ID da planilha .xlsx no Google Drive
+ID_ARQUIVO = '1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT'
 ARQUIVO_ULTIMA_MODIFICACAO = 'ultima_modificacao.txt'
+
+# Telegram
 TOKEN = '7498773442:AAEO8ihxIP18JtFSrO_6UGeC8VPtIJVH2rU'
 CHAT_ID = '8142521159'
 
@@ -40,18 +43,16 @@ def get_ultima_atividade():
         raise ValueError("❌ Nenhuma atividade encontrada para o arquivo.")
 
     atividade = atividades[0]
-    user = atividade['actors'][0].get('user', {}).get('knownUser', {}).get('personName', 'Desconhecido')
-    email = atividade['actors'][0].get('user', {}).get('knownUser', {}).get('personName', 'sem email')
 
-    timestamp = atividade.get('timestamp')
-    if not timestamp:
-        timestamp = atividade['timeRange']['endTime']
+    # Tenta pegar e-mail do usuário
+    usuario = atividade['actors'][0].get('user', {}).get('knownUser', {}).get('emailAddress')
+    if not usuario:
+        usuario = 'Desconhecido'
 
-    return timestamp, email
+    # Pega o horário e converte de UTC para GMT-3
+    timestamp = atividade.get('timestamp') or atividade['timeRange']['endTime']
+    horario_utc = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+    horario_br = horario_utc.astimezone(timezone(timedelta(hours=-3)))
+    horario_formatado = horario_br.strftime("%d/%m/%Y %H:%M:%S")
 
-
-
-def enviar_telegram(mensagem):
-    url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
-    resposta = requests.post(url, data={'chat_id': CHAT_ID, 'text': mensagem})
-    print("✅ Telegram enviado!" if resposta.status_code == 200 else f"❌ Erro: {resposta.text}")
+    return horario_formatado, usuario
