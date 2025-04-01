@@ -9,7 +9,11 @@ services:
     startCommand: python check_planilha.py
     envVars:
       - key: GOOGLE_CREDENTIALS
-        sync: false  # valor secreto será definido via painel da Render
+        sync: false
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
 
   - type: cron
     name: gatilho-automacao
@@ -21,4 +25,8 @@ services:
     startCommand: python gatilho_automacao.py
     envVars:
       - key: GOOGLE_CREDENTIALS
+        sync: false
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
         sync: false
