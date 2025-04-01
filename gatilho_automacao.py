@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta
 import os
-from monitor_planilha import enviar_telegram, salvar_log
+from datetime import datetime, timedelta
+from monitor_planilha import enviar_telegram, get_ultima_atividade
 
 ARQUIVO_ULTIMA_MODIFICACAO = 'ultima_modificacao.txt'
 ARQUIVO_ULTIMA_EXECUCAO = 'ultima_execucao.txt'
-DELAY_MINUTOS = 5  # tempo de inatividade para rodar automação
+DELAY_MINUTOS = 5
 
 def ja_executou(horario_modificacao):
     if not os.path.exists(ARQUIVO_ULTIMA_EXECUCAO):
@@ -14,49 +14,48 @@ def ja_executou(horario_modificacao):
     return ultima_exec == horario_modificacao
 
 def main():
-    if not os.path.exists(ARQUIVO_ULTIMA_MODIFICACAO):
-        print("🟡 Nenhuma modificação registrada ainda.")
-        return
-
-    with open(ARQUIVO_ULTIMA_MODIFICACAO, 'r') as f:
-        conteudo = f.read().strip()
-
-    if "|" not in conteudo:
-        print("❌ Formato inválido no arquivo de modificação.")
-        return
-
-    mod_str, status = conteudo.split("|")
-
-    if status == "sim":
-        print("⏭️ Modificação já processada.")
+    ultima_mod, quem = get_ultima_atividade()
+    if not ultima_mod:
+        print("⚠️ Nenhuma modificação detectada.")
         return
 
     try:
-        horario_mod = datetime.strptime(mod_str, "%d/%m/%Y %H:%M:%S")
-    except ValueError:
-        print("❌ Formato de data inválido.")
+        horario = datetime.strptime(ultima_mod, "%d/%m/%Y %H:%M:%S")
+    except:
+        print("❌ Erro ao converter horário.")
         return
 
-    agora = datetime.now()
-    if agora - horario_mod >= timedelta(minutes=DELAY_MINUTOS):
-        if ja_executou(mod_str):
-            print("⏱️ Automação já foi executada para essa modificação.")
-            return
-
-        # (Aqui entraria seu processamento principal futuro, tipo atualizar planilha/dash/etc)
-        enviar_telegram("🤖 A automação foi executada com base na última modificação da planilha.")
-        salvar_log("Sistema", "automacao", f"Automação executada para modificação em {mod_str}")
-
-        with open(ARQUIVO_ULTIMA_EXECUCAO, 'w') as f:
-            f.write(mod_str)
-
-        with open(ARQUIVO_ULTIMA_MODIFICACAO, 'w') as f:
-            f.write(f"{mod_str}|sim")
-
-        print("✅ Automação executada com sucesso!")
-
+    if os.path.exists(ARQUIVO_ULTIMA_MODIFICACAO):
+        with open(ARQUIVO_ULTIMA_MODIFICACAO, 'r') as f:
+            conteudo = f.read().strip()
+            try:
+                horario_salvo_str, status = conteudo.split("|")
+            except:
+                horario_salvo_str, status = "00/00/0000 00:00:00", "sim"
     else:
-        print("🕒 Aguardando 5 minutos após a modificação...")
+        horario_salvo_str, status = "00/00/0000 00:00:00", "sim"
 
-if __name__ == "__main__":
+    try:
+        horario_salvo = datetime.strptime(horario_salvo_str, "%d/%m/%Y %H:%M:%S")
+    except:
+        horario_salvo = datetime.min
+
+    if horario > horario_salvo:
+        if datetime.now() - horario >= timedelta(minutes=DELAY_MINUTOS):
+            if not ja_executou(ultima_mod):
+                with open(ARQUIVO_ULTIMA_EXECUCAO, 'w') as f:
+                    f.write(ultima_mod)
+                with open(ARQUIVO_ULTIMA_MODIFICACAO, 'w') as f:
+                    f.write(f"{ultima_mod}|sim")
+                msg = f"📢 A planilha foi modificada!\n🧑‍💼 Quem: {quem}\n🕒 Quando: {ultima_mod}"
+                enviar_telegram(msg)
+                print("✅ Alerta enviado.")
+            else:
+                print("⏱️ Já executado.")
+        else:
+            print("🕓 Esperando delay mínimo.")
+    else:
+        print("🟡 Nenhuma nova modificação.")
+
+if __name__ == '__main__':
     main()
