@@ -10,7 +10,7 @@ ARQUIVO_ULTIMA_MODIFICACAO = 'ultima_modificacao.txt'
 TOKEN = '7498773442:AAEO8ihxIP18JtFSrO_6UGeC8VPtIJVH2rU'
 CHAT_ID = '8142521159'
 
-def get_modified_info():
+def get_modified_time():
     google_creds_json = os.environ.get('GOOGLE_CREDENTIALS')
     if not google_creds_json:
         raise ValueError("❌ Variável de ambiente GOOGLE_CREDENTIALS não encontrada!")
@@ -22,10 +22,11 @@ def get_modified_info():
 
     file = service.files().get(
         fileId=ID_ARQUIVO,
-        fields='modifiedTime, lastModifyingUser(displayName)'
+        fields='modifiedTime'
     ).execute()
 
-    return file['modifiedTime'], file.get('lastModifyingUser', {}).get('displayName', 'Desconhecido')
+    return file['modifiedTime']
+
 
 def enviar_telegram(mensagem):
     url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
