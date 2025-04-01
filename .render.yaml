@@ -1,0 +1,5 @@
+services: []
+cron:
+  - name: monitor-planilha
+    schedule: "*/2 * * * *"
+    command: "python check_planilha.py"
