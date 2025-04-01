@@ -1,11 +1,11 @@
-from monitor_planilha import get_modified_info, enviar_telegram
+from monitor_planilha import get_modified_time, enviar_telegram
 import os
 
 ARQUIVO_ULTIMA_MODIFICACAO = 'ultima_modificacao.txt'
 
 def main():
     try:
-        atual, autor = get_modified_info()
+        atual = get_modified_time()
 
         if os.path.exists(ARQUIVO_ULTIMA_MODIFICACAO):
             with open(ARQUIVO_ULTIMA_MODIFICACAO, 'r') as f:
@@ -16,7 +16,6 @@ def main():
         if atual != ultima:
             mensagem = (
                 "📢 A planilha base foi atualizada com sucesso! ✅\n"
-                f"🧑‍💼 Atualizado por: {autor}\n"
                 f"🕒 Horário: {atual}"
             )
             enviar_telegram(mensagem)
@@ -26,6 +25,7 @@ def main():
             print("🕒 Sem alteração detectada.")
     except Exception as e:
         enviar_telegram(f"⚠️ Erro no monitoramento: ❌ {e}")
+
 
 if __name__ == '__main__':
     main()
