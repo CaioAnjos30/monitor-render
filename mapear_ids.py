@@ -3,33 +3,38 @@ from googleapiclient.discovery import build
 import os
 import json
 
-GOOGLE_CREDENTIALS = os.getenv('GOOGLE_CREDENTIALS')
-ARQUIVO_ID = '1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT'  # ID da sua planilha
+# 🔐 Lê as credenciais do ambiente
+creds_json = os.getenv("GOOGLE_CREDENTIALS")
+creds_dict = json.loads(creds_json)
 
-def descobrir_quem_e_quem():
-    if not GOOGLE_CREDENTIALS:
-        raise Exception("❌ GOOGLE_CREDENTIALS não definida.")
+SCOPES = ['https://www.googleapis.com/auth/drive']
+creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+service = build('drive', 'v3', credentials=creds)
 
-    info = json.loads(GOOGLE_CREDENTIALS)
-    creds = service_account.Credentials.from_service_account_info(info, scopes=[
-        'https://www.googleapis.com/auth/drive'
-    ])
+# ✅ ID da sua pasta
+ID_PASTA = '1FyYUWwcV2kr7flcUF9HbDgUB0AJXIyr9'
 
-    service = build('drive', 'v3', credentials=creds)
-
-    resultado = service.permissions().list(
-        fileId=ARQUIVO_ID,
-        fields="permissions(id,emailAddress,displayName)"
+def listar_permissoes():
+    print("🔍 Buscando permissões da PASTA...")
+    resultados = service.permissions().list(
+        fileId=ID_PASTA,
+        fields="permissions(id,emailAddress,displayName)",
+        supportsAllDrives=True
     ).execute()
 
-    permissoes = resultado.get('permissions', [])
+    permissoes = resultados.get('permissions', [])
 
-    print("🔍 Mapeamento de usuários com acesso:")
-    for p in permissoes:
-        pid = f"people/{p['id']}"
-        nome = p.get("displayName", "sem nome")
-        email = p.get("emailAddress", "sem email")
-        print(f'{pid}: {nome} ({email})')
+    if not permissoes:
+        print("❌ Nenhuma permissão encontrada.")
+        return
+
+    print("\n✅ MAPA_PESSOAS = {\n")
+    for perm in permissoes:
+        pessoa_id = f"people/{perm['id']}"
+        nome = perm.get('displayName', 'Sem nome')
+        email = perm.get('emailAddress', 'Sem email')
+        print(f'    "{pessoa_id}": "{nome} ({email})",')
+    print("}\n")
 
 if __name__ == "__main__":
-    descobrir_quem_e_quem()
+    listar_permissoes()
