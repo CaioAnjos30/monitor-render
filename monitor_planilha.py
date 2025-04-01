@@ -1,21 +1,29 @@
-# monitor_planilha.py
-
 import os
+import json
 import requests
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-# CONFIGS
+# === Configurações ===
 ID_ARQUIVO = '1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT'
-CAMINHO_CREDENCIAL = 'credenciais_google.json'
 ARQUIVO_ULTIMA_MODIFICACAO = 'ultima_modificacao.txt'
 TOKEN = '7498773442:AAEO8ihxIP18JtFSrO_6UGeC8VPtIJVH2rU'
 CHAT_ID = '8142521159'
 
 def get_modified_time():
+    # Lê credencial da variável de ambiente
+    google_creds_json = os.environ.get('GOOGLE_CREDENTIALS')
+
+    if not google_creds_json:
+        raise ValueError("❌ Variável de ambiente GOOGLE_CREDENTIALS não encontrada!")
+
+    # Converte string JSON para dicionário
+    cred_dict = json.loads(google_creds_json)
+
     scopes = ['https://www.googleapis.com/auth/drive.metadata.readonly']
-    creds = service_account.Credentials.from_service_account_file(CAMINHO_CREDENCIAL, scopes=scopes)
+    creds = service_account.Credentials.from_service_account_info(cred_dict, scopes=scopes)
     service = build('drive', 'v3', credentials=creds)
+
     file = service.files().get(fileId=ID_ARQUIVO, fields='modifiedTime').execute()
     return file['modifiedTime']
 
