@@ -5,11 +5,12 @@ import os
 import json
 import pytz
 import requests
+from sqlalchemy import create_engine
 
-# ⏰ Timezone brasileiro
+# Timezone Brasil
 TZ = pytz.timezone("America/Sao_Paulo")
 
-# ✅ Mapa de IDs para nomes legíveis
+# Mapa de pessoas
 MAPA_PESSOAS = {
     "people/00289363581191441115": "python-planilhas@black-moon-455013-a5.iam.gserviceaccount.com",
     "people/01708069321338839734": "Olívia Scanentech",
@@ -22,10 +23,23 @@ MAPA_PESSOAS = {
 }
 
 ID_ARQUIVO = "1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT"
-TOKEN = os.getenv("TELEGRAM_TOKEN") or "SEU_TOKEN_AQUI"
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID") or "SEU_CHAT_ID_AQUI"
 ARQUIVO_ULTIMA_MODIFICACAO = 'ultima_modificacao.txt'
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
+def salvar_log(usuario, tipo, mensagem):
+    try:
+        engine = create_engine(
+            'postgresql://googledrive_postgree_user:zCjZp44UQ3MU4rAjmteL7DBWaxy3D6BU@dpg-cvikpkpr0fns73cl87cg-a.frankfurt-postgres.render.com:5432/googledrive_postgree'
+        )
+        with engine.begin() as conn:
+            conn.execute(
+                "INSERT INTO logs_monitoramento (data_hora, usuario, tipo, mensagem) VALUES (%s, %s, %s, %s)",
+                (datetime.now(), usuario, tipo, mensagem)
+            )
+        print("📝 Log salvo no PostgreSQL")
+    except Exception as e:
+        print(f"⚠️ Erro ao salvar log: {e}")
 
 def get_ultima_atividade():
     creds_dict = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
@@ -33,16 +47,17 @@ def get_ultima_atividade():
         creds_dict,
         scopes=["https://www.googleapis.com/auth/drive.activity.readonly"]
     )
+
     service = build('driveactivity', 'v2', credentials=creds)
 
     body = {
         "itemName": f"items/{ID_ARQUIVO}",
-        "pageSize": 1,
-        "filter": "time > 2024-01-01T00:00:00Z"
+        "pageSize": 1
     }
 
     response = service.activity().query(body=body).execute()
     activities = response.get("activities", [])
+
     if not activities:
         return None, None
 
@@ -56,11 +71,9 @@ def get_ultima_atividade():
 
     return quem, data_formatada
 
-
 def enviar_telegram(mensagem):
     url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
     requests.post(url, data={'chat_id': CHAT_ID, 'text': mensagem})
-
 
 def ja_enviou(quando):
     if not os.path.exists(ARQUIVO_ULTIMA_MODIFICACAO):
@@ -68,7 +81,6 @@ def ja_enviou(quando):
     with open(ARQUIVO_ULTIMA_MODIFICACAO, 'r') as f:
         conteudo = f.read().strip()
     return conteudo.startswith(quando)
-
 
 def main():
     try:
@@ -82,14 +94,15 @@ def main():
             return
 
         nome_legivel = MAPA_PESSOAS.get(quem, "Desconhecido")
+
         mensagem = (
             "📢 A planilha foi modificada!\n"
             f"👨‍💼 Quem: {nome_legivel}\n"
             f"🕒 Quando: {quando}"
         )
         enviar_telegram(mensagem)
+        salvar_log(nome_legivel, "modificacao", f"Planilha modificada por {nome_legivel} às {quando}")
 
-        # Atualiza o arquivo de controle
         with open(ARQUIVO_ULTIMA_MODIFICACAO, 'w') as f:
             f.write(f"{quando}|nao")
 
@@ -98,7 +111,6 @@ def main():
     except Exception as e:
         print("❌ Erro ao monitorar:", e)
         enviar_telegram(f"⚠️ Erro no monitoramento:\n❌ {e}")
-
 
 if __name__ == "__main__":
     main()
