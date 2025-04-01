@@ -1,72 +1,104 @@
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from datetime import datetime
-import pytz
 import os
 import json
+import pytz
 import requests
 
-# 📂 Variável de ambiente com as credenciais Google
-GOOGLE_CREDENTIALS = os.getenv('GOOGLE_CREDENTIALS')
+# ⏰ Timezone brasileiro
+TZ = pytz.timezone("America/Sao_Paulo")
 
-# ✅ ID do arquivo no Google Drive
-ARQUIVO_ID = '1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT'
+# ✅ Mapa de IDs para nomes legíveis
+MAPA_PESSOAS = {
+    "people/00289363581191441115": "python-planilhas@black-moon-455013-a5.iam.gserviceaccount.com",
+    "people/01708069321338839734": "Olívia Scanentech",
+    "people/04174463028638780853": "Enzo Silva",
+    "people/04296532891180382301": "Breno Mattos",
+    "people/15062355278509587252": "Caio Anjos",
+    "people/18141613163935753002": "Mtiemy (Scanntech)",
+}
 
-# ✅ Token e chat ID do bot Telegram
-TELEGRAM_TOKEN = '7498773442:AAEO8ihxIP18JtFSrO_6UGeC8VPtIJVH2rU'
-TELEGRAM_CHAT_ID = '8142521159'
+# 📁 ID do arquivo da planilha
+ID_ARQUIVO = "1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT"
+
+# 📩 Telegram
+TOKEN = os.getenv("TELEGRAM_TOKEN") or "SEU_TOKEN_AQUI"
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID") or "SEU_CHAT_ID_AQUI"
+
+# 📄 Caminho para salvar modificação
+ARQUIVO_ULTIMA_MODIFICACAO = 'ultima_modificacao.txt'
+
 
 def get_ultima_atividade():
-    if not GOOGLE_CREDENTIALS:
-        raise Exception("❌ Variável de ambiente GOOGLE_CREDENTIALS não encontrada!")
-
-    info = json.loads(GOOGLE_CREDENTIALS)
-    creds = service_account.Credentials.from_service_account_info(info, scopes=[
-        'https://www.googleapis.com/auth/drive.activity.readonly'
-    ])
+    # 🔐 Autenticação
+    creds_dict = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
+    creds = service_account.Credentials.from_service_account_info(
+        creds_dict,
+        scopes=["https://www.googleapis.com/auth/drive.activity.readonly"]
+    )
 
     service = build('driveactivity', 'v2', credentials=creds)
 
     body = {
-        "itemName": f"items/{ARQUIVO_ID}",
-        "pageSize": 1
+        "itemName": f"items/{ID_ARQUIVO}",
+        "pageSize": 1,
+        "filter": "time > 2024-01-01T00:00:00Z"
     }
 
     response = service.activity().query(body=body).execute()
     activities = response.get("activities", [])
 
     if not activities:
-        raise Exception("⚠️ Nenhuma atividade encontrada para o arquivo.")
+        return None, None
 
-    atividade = activities[0]
-    atores = atividade.get("actors", [])
+    activity = activities[0]
+    time = activity["timestamp"]
+    quem = activity["actors"][0].get("user", {}).get("knownUser", {}).get("personName", "Desconhecido")
 
-    # ⏰ Converte horário UTC para Horário de Brasília
-    horario_utc = atividade.get("timestamp")
-    horario_dt = datetime.strptime(horario_utc, "%Y-%m-%dT%H:%M:%S.%fZ")
-    fuso_brasil = pytz.timezone('America/Sao_Paulo')
-    horario_brasil = horario_dt.replace(tzinfo=pytz.utc).astimezone(fuso_brasil)
-    horario_formatado = horario_brasil.strftime("%d/%m/%Y %H:%M:%S")
+    # ⏱️ Ajusta para horário de Brasília
+    dt_utc = datetime.strptime(time, "%Y-%m-%dT%H:%M:%S.%fZ")
+    dt_brasil = dt_utc.replace(tzinfo=pytz.utc).astimezone(TZ)
 
-    # 👤 Tenta pegar o displayName ou permissionId
-    nome = "Desconhecido"
-    for ator in atores:
-        user = ator.get("user", {})
-        known_user = user.get("knownUser", {})
-        if known_user:
-            nome = known_user.get("displayName") or known_user.get("personName", "Desconhecido")
-            break
+    return quem, dt_brasil.strftime("%d/%m/%Y %H:%M:%S")
 
-    return horario_formatado, nome
 
 def enviar_telegram(mensagem):
-    url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
-    response = requests.post(url, data={
-        'chat_id': TELEGRAM_CHAT_ID,
+    url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
+    requests.post(url, data={
+        'chat_id': CHAT_ID,
         'text': mensagem
     })
 
-    if response.status_code == 200:
-        print("✅ Mensagem enviada ao Telegram!")
-    else:
-        print(f"❌ Erro ao enviar mensagem: {response.text}")
+
+def main():
+    try:
+        quem, quando = get_ultima_atividade()
+
+        if not quem or not quando:
+            print("❌ Nenhuma modificação encontrada.")
+            return
+
+        # 🧠 Nome real se houver
+        nome_legivel = MAPA_PESSOAS.get(quem, "Desconhecido")
+
+        mensagem = (
+            "📢 A planilha foi modificada!\n"
+            f"👨‍💼 Quem: {nome_legivel}\n"
+            f"🕒 Quando: {quando}"
+        )
+
+        enviar_telegram(mensagem)
+        print("✅ Mensagem enviada com sucesso!")
+
+        # 📝 Salva modificação local
+        with open(ARQUIVO_ULTIMA_MODIFICACAO, 'w') as f:
+            f.write(f"{quando}|nao")
+
+    except Exception as e:
+        print("❌ Erro ao monitorar:", e)
+        enviar_telegram(f"⚠️ Erro no monitoramento:\n❌ {e}")
+
+
+if __name__ == "__main__":
+    main()
