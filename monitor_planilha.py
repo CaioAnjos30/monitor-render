@@ -17,6 +17,8 @@ MAPA_PESSOAS = {
     "people/04296532891180382301": "Breno Mattos",
     "people/15062355278509587252": "Caio Anjos",
     "people/18141613163935753002": "Mtiemy (Scanntech)",
+    "people/105257090019450438376": "Olívia Scanentech",
+    "people/109989480159477284499": "Mtiemy (Scanntech)",
 }
 
 ID_ARQUIVO = "1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT"
