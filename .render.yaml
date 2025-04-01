@@ -1,5 +1,24 @@
-services: []
-cron:
-  - name: monitor-planilha
-    schedule: "*/2 * * * *"
-    command: "python check_planilha.py"
+services:
+  - type: cron
+    name: check-modificacao
+    runtime: python
+    repo: https://github.com/CaioAnjos30/monitor-render
+    branch: main
+    schedule: */2 * * * *  # A cada 2 minutos
+    buildCommand: ""
+    startCommand: python check_planilha.py
+    envVars:
+      - key: GOOGLE_CREDENTIALS
+        sync: false  # valor secreto será definido via painel da Render
+
+  - type: cron
+    name: gatilho-automacao
+    runtime: python
+    repo: https://github.com/CaioAnjos30/monitor-render
+    branch: main
+    schedule: */2 * * * *  # A cada 2 minutos
+    buildCommand: ""
+    startCommand: python gatilho_automacao.py
+    envVars:
+      - key: GOOGLE_CREDENTIALS
+        sync: false
