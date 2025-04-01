@@ -2,47 +2,38 @@ from datetime import datetime, timedelta
 import os
 from monitor_planilha import enviar_telegram
 
-ARQUIVO_ULTIMA_MODIFICACAO = 'ultima_modificacao.txt'
-ARQUIVO_ULTIMA_EXECUCAO = 'ultima_execucao.txt'
-DELAY_MINUTOS = 5  # tempo de inatividade para considerar rodar automação
-
-def ja_executou(horario_modificacao):
-    if not os.path.exists(ARQUIVO_ULTIMA_EXECUCAO):
-        return False
-    with open(ARQUIVO_ULTIMA_EXECUCAO, 'r') as f:
-        ultima_exec = f.read().strip()
-    return ultima_exec == horario_modificacao
+ARQUIVO_MODIFICACAO = 'ultima_modificacao.txt'
+DELAY_MINUTOS = 5
 
 def main():
-    if not os.path.exists(ARQUIVO_ULTIMA_MODIFICACAO):
-        print("🟡 Nenhuma modificação registrada ainda.")
+    if not os.path.exists(ARQUIVO_MODIFICACAO):
+        print("⏳ Aguardando primeira modificação...")
         return
 
-    with open(ARQUIVO_ULTIMA_MODIFICACAO, 'r') as f:
-        mod_str = f.read().strip()
+    with open(ARQUIVO_MODIFICACAO, 'r') as f:
+        conteudo = f.read().strip().split('|')
+        horario_mod = conteudo[0]
+        ja_executado = conteudo[1] if len(conteudo) > 1 else 'nao'
+
+    if ja_executado == 'sim':
+        print("⏱️ Já executado anteriormente para essa modificação.")
+        return
 
     try:
-        horario_mod = datetime.strptime(mod_str, "%d/%m/%Y %H:%M:%S")
+        horario_dt = datetime.strptime(horario_mod, "%d/%m/%Y %H:%M:%S")
     except ValueError:
-        print("❌ Formato inválido da data de modificação.")
+        print("❌ Erro ao interpretar horário.")
         return
 
     agora = datetime.now()
-    if agora - horario_mod >= timedelta(minutes=DELAY_MINUTOS):
-        if ja_executou(mod_str):
-            print("⏱️ Automação já foi executada para essa modificação.")
-            return
 
-        # Aqui você pode chamar seu script de automação real, por exemplo:
-        # import main
-        # main.run()
-
+    if agora - horario_dt >= timedelta(minutes=DELAY_MINUTOS):
         enviar_telegram("🤖 A automação foi executada com base na última modificação da planilha.")
-        with open(ARQUIVO_ULTIMA_EXECUCAO, 'w') as f:
-            f.write(mod_str)
+        with open(ARQUIVO_MODIFICACAO, 'w') as f:
+            f.write(f"{horario_mod}|sim")
         print("✅ Automação executada com sucesso!")
     else:
-        print("🕒 Aguardando 5 minutos após modificação...")
+        print("⌛ Aguardando os 5 minutos de inatividade...")
 
 if __name__ == '__main__':
     main()
