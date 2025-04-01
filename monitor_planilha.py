@@ -19,25 +19,18 @@ MAPA_PESSOAS = {
     "people/18141613163935753002": "Mtiemy (Scanntech)",
 }
 
-# 📁 ID do arquivo da planilha
 ID_ARQUIVO = "1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT"
-
-# 📩 Telegram
 TOKEN = os.getenv("TELEGRAM_TOKEN") or "SEU_TOKEN_AQUI"
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID") or "SEU_CHAT_ID_AQUI"
-
-# 📄 Caminho para salvar modificação
 ARQUIVO_ULTIMA_MODIFICACAO = 'ultima_modificacao.txt'
 
 
 def get_ultima_atividade():
-    # 🔐 Autenticação
     creds_dict = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
     creds = service_account.Credentials.from_service_account_info(
         creds_dict,
         scopes=["https://www.googleapis.com/auth/drive.activity.readonly"]
     )
-
     service = build('driveactivity', 'v2', credentials=creds)
 
     body = {
@@ -48,7 +41,6 @@ def get_ultima_atividade():
 
     response = service.activity().query(body=body).execute()
     activities = response.get("activities", [])
-
     if not activities:
         return None, None
 
@@ -56,44 +48,50 @@ def get_ultima_atividade():
     time = activity["timestamp"]
     quem = activity["actors"][0].get("user", {}).get("knownUser", {}).get("personName", "Desconhecido")
 
-    # ⏱️ Ajusta para horário de Brasília
     dt_utc = datetime.strptime(time, "%Y-%m-%dT%H:%M:%S.%fZ")
     dt_brasil = dt_utc.replace(tzinfo=pytz.utc).astimezone(TZ)
+    data_formatada = dt_brasil.strftime("%d/%m/%Y %H:%M:%S")
 
-    return quem, dt_brasil.strftime("%d/%m/%Y %H:%M:%S")
+    return quem, data_formatada
 
 
 def enviar_telegram(mensagem):
     url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
-    requests.post(url, data={
-        'chat_id': CHAT_ID,
-        'text': mensagem
-    })
+    requests.post(url, data={'chat_id': CHAT_ID, 'text': mensagem})
+
+
+def ja_enviou(quando):
+    if not os.path.exists(ARQUIVO_ULTIMA_MODIFICACAO):
+        return False
+    with open(ARQUIVO_ULTIMA_MODIFICACAO, 'r') as f:
+        conteudo = f.read().strip()
+    return conteudo.startswith(quando)
 
 
 def main():
     try:
         quem, quando = get_ultima_atividade()
-
         if not quem or not quando:
-            print("❌ Nenhuma modificação encontrada.")
+            print("⚠️ Nenhuma modificação encontrada.")
             return
 
-        # 🧠 Nome real se houver
-        nome_legivel = MAPA_PESSOAS.get(quem, "Desconhecido")
+        if ja_enviou(quando):
+            print("⏱️ Modificação já notificada anteriormente.")
+            return
 
+        nome_legivel = MAPA_PESSOAS.get(quem, "Desconhecido")
         mensagem = (
             "📢 A planilha foi modificada!\n"
             f"👨‍💼 Quem: {nome_legivel}\n"
             f"🕒 Quando: {quando}"
         )
-
         enviar_telegram(mensagem)
-        print("✅ Mensagem enviada com sucesso!")
 
-        # 📝 Salva modificação local
+        # Atualiza o arquivo de controle
         with open(ARQUIVO_ULTIMA_MODIFICACAO, 'w') as f:
             f.write(f"{quando}|nao")
+
+        print("✅ Mensagem enviada com sucesso!")
 
     except Exception as e:
         print("❌ Erro ao monitorar:", e)
