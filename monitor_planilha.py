@@ -5,25 +5,12 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import requests
 
-# === VARIÁVEIS DE AMBIENTE ===
+# === CONFIGURAÇÕES ===
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-ARQUIVO_MODIFICACAO = 'ultima_modificacao.txt'
-
-# === CONFIGURAÇÃO ===
 FILE_ID = "1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT"
-
-MAPA_PESSOAS = {
-    "people/00289363581191441115": "python-planilhas@black-moon-455013-a5.iam.gserviceaccount.com",
-    "people/01708069321338839734": "Olívia Scanentech",
-    "people/04174463028638780853": "Enzo Silva",
-    "people/04296532891180382301": "Breno Mattos",
-    "people/15062355278509587252": "Caio Anjos",
-    "people/18141613163935753002": "Mtiemy (Scanntech)",
-    "people/105257090019450438376": "Olívia Scanentech",
-    "people/109989480159477284499": "Mtiemy (Scanntech)",
-}
+ARQUIVO_MODIFICACAO = "ultima_modificacao.txt"
 
 
 def enviar_telegram(mensagem):
@@ -35,68 +22,42 @@ def enviar_telegram(mensagem):
     if response.status_code == 200:
         print("📨 Mensagem enviada com sucesso.")
     else:
-        print(f"❌ Falha ao enviar mensagem: {response.text}")
+        print(f"❌ Erro ao enviar mensagem: {response.text}")
 
 
-def get_ultima_atividade():
-    if not GOOGLE_CREDENTIALS:
-        enviar_telegram("⚠️ Erro: ❌ GOOGLE_CREDENTIALS não encontrada.")
-        return None, None
-
-    creds_dict = json.loads(GOOGLE_CREDENTIALS)
+def get_modified_time():
     creds = service_account.Credentials.from_service_account_info(
-        creds_dict, scopes=["https://www.googleapis.com/auth/drive.metadata.readonly"]
+        json.loads(GOOGLE_CREDENTIALS),
+        scopes=["https://www.googleapis.com/auth/drive.metadata.readonly"]
     )
-
     service = build("drive", "v3", credentials=creds)
+    file = service.files().get(fileId=FILE_ID, fields="modifiedTime").execute()
 
-    try:
-        file = service.files().get(
-            fileId=FILE_ID,
-            fields="modifiedTime, lastModifyingUser(permissionId)"
-        ).execute()
-
-        modified_time = file["modifiedTime"]
-        permission_id = file.get("lastModifyingUser", {}).get("permissionId", "Desconhecido")
-        nome = MAPA_PESSOAS.get(permission_id, "Desconhecido")
-
-        # Ajusta para horário de Brasília
-        dt_obj = datetime.fromisoformat(modified_time.replace("Z", "+00:00"))
-        dt_brasil = dt_obj.astimezone(timezone(timedelta(hours=-3)))
-        mod_formatado = dt_brasil.strftime("%d/%m/%Y %H:%M:%S")
-
-        return mod_formatado, nome
-
-    except Exception as e:
-        enviar_telegram(f"⚠️ Erro no monitoramento: {e}")
-        return None, None
+    modified_time = file["modifiedTime"]
+    dt = datetime.fromisoformat(modified_time.replace("Z", "+00:00"))
+    dt_brasil = dt.astimezone(timezone(timedelta(hours=-3)))
+    return dt_brasil.strftime("%d/%m/%Y %H:%M:%S")
 
 
 def main():
-    data_mod, quem = get_ultima_atividade()
-    if not data_mod:
-        print("⛔ Nenhuma modificação detectada.")
+    nova_data = get_modified_time()
+    if not nova_data:
+        print("❌ Não foi possível obter data.")
         return
 
-    mod_str = f"{data_mod}|sim"
-
+    data_antiga = ""
     if os.path.exists(ARQUIVO_MODIFICACAO):
         with open(ARQUIVO_MODIFICACAO, "r") as f:
-            atual = f.read().strip()
-        if atual == mod_str:
-            print("⏳ Nenhuma nova modificação.")
-            return
+            data_antiga = f.read().strip()
 
-    with open(ARQUIVO_MODIFICACAO, "w") as f:
-        f.write(mod_str)
-
-    mensagem = (
-        "📢 A planilha foi modificada!\n"
-        f"🧑‍💼 Quem: {quem}\n"
-        f"🕒 Quando: {data_mod}"
-    )
-    enviar_telegram(mensagem)
-    print(f"✅ Modificação registrada e alerta enviado: {mensagem}")
+    if nova_data != data_antiga:
+        mensagem = f"📢 A planilha foi modificada!\n🕒 Quando: {nova_data}"
+        enviar_telegram(mensagem)
+        with open(ARQUIVO_MODIFICACAO, "w") as f:
+            f.write(nova_data)
+        print("✅ Modificação detectada e alerta enviado.")
+    else:
+        print("🟢 Nenhuma nova modificação.")
 
 
 if __name__ == "__main__":
