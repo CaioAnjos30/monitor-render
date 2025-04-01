@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import os
-from monitor_planilha import enviar_telegram
+from monitor_planilha import enviar_telegram, salvar_log
 
 ARQUIVO_ULTIMA_MODIFICACAO = 'ultima_modificacao.txt'
 ARQUIVO_ULTIMA_EXECUCAO = 'ultima_execucao.txt'
@@ -43,13 +43,10 @@ def main():
             print("⏱️ Automação já foi executada para essa modificação.")
             return
 
-        # Aqui você pode chamar sua automação real:
-        # import main
-        # main.run()
-
+        # (Aqui entraria seu processamento principal futuro, tipo atualizar planilha/dash/etc)
         enviar_telegram("🤖 A automação foi executada com base na última modificação da planilha.")
+        salvar_log("Sistema", "automacao", f"Automação executada para modificação em {mod_str}")
 
-        # Marcar como processado
         with open(ARQUIVO_ULTIMA_EXECUCAO, 'w') as f:
             f.write(mod_str)
 
