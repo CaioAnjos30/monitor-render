@@ -9,7 +9,7 @@ def main():
 
         if os.path.exists(ARQUIVO_ULTIMA_MODIFICACAO):
             with open(ARQUIVO_ULTIMA_MODIFICACAO, 'r') as f:
-                ultima = f.read().strip()
+                ultima = f.read().strip().split('|')[0]  # Pega só o horário
         else:
             ultima = ""
 
@@ -20,12 +20,10 @@ def main():
                 f"🕒 Quando: {horario_atual}"
             )
             enviar_telegram(mensagem)
+            # Salva novo horário e flag de execução como "nao"
             with open(ARQUIVO_ULTIMA_MODIFICACAO, 'w') as f:
-                f.write(horario_atual)
+                f.write(f"{horario_atual}|nao")
         else:
-            print("🕒 Nenhuma modificação detectada.")
+            print("🟢 Nenhuma nova modificação detectada.")
     except Exception as e:
         enviar_telegram(f"⚠️ Erro no monitoramento: ❌ {e}")
-
-if __name__ == '__main__':
-    main()
