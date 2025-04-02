@@ -5,14 +5,14 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import requests
 
-# ID da planilha Google Sheets que está sendo monitorada
+# ID do ARQUIVO .xlsx (não Google Sheets!)
 FILE_ID = "1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT"
 
-# Variável de ambiente com as credenciais do Google (JSON puro)
+# Variável de ambiente com JSON das credenciais
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 
 def enviar_telegram(msg):
-    """Envia uma mensagem via Telegram."""
+    """Envia mensagem no Telegram via bot."""
     token = os.getenv("TELEGRAM_TOKEN")
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
     if not token or not chat_id:
@@ -30,7 +30,7 @@ def enviar_telegram(msg):
         print(f"❌ Erro ao enviar mensagem Telegram: {e}")
 
 def get_modified_time():
-    """Obtém a última data de modificação do arquivo no Google Drive, convertida para horário de Brasília."""
+    """Retorna a data da última modificação do arquivo no formato BR (UTC-3)."""
     if not GOOGLE_CREDENTIALS:
         print("❌ GOOGLE_CREDENTIALS não encontrada.")
         return None
@@ -43,7 +43,6 @@ def get_modified_time():
         )
 
         service = build("drive", "v3", credentials=creds)
-
         file = service.files().get(
             fileId=FILE_ID,
             fields="modifiedTime"
@@ -51,7 +50,7 @@ def get_modified_time():
 
         modified_time = file["modifiedTime"]
 
-        # Converter horário UTC para horário de Brasília
+        # Converter UTC para horário de Brasília
         dt = datetime.fromisoformat(modified_time.replace("Z", "+00:00"))
         dt_brasil = dt.astimezone(timezone(timedelta(hours=-3)))
         return dt_brasil.strftime("%d/%m/%Y %H:%M:%S")
@@ -60,7 +59,7 @@ def get_modified_time():
         print(f"❌ Erro ao obter modificação: {e}")
         return None
 
-# Teste local opcional
+# Teste local
 if __name__ == "__main__":
     data = get_modified_time()
     if data:
