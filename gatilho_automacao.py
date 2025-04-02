@@ -2,8 +2,8 @@ import os
 from datetime import datetime, timedelta
 from monitor_planilha import get_modified_time, enviar_telegram
 
-ARQUIVO_ULTIMA_MODIFICACAO = 'ultima_modificacao.txt'
-ARQUIVO_ULTIMA_EXECUCAO = 'ultima_execucao.txt'
+ARQUIVO_ULTIMA_MODIFICACAO = "/tmp/ultima_modificacao.txt"
+ARQUIVO_ULTIMA_EXECUCAO = "/tmp/ultima_execucao.txt"
 DELAY_MINUTOS = 5  # tempo de inatividade para considerar a execução
 
 def ja_executou(horario_modificacao):
