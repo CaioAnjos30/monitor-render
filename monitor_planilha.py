@@ -5,7 +5,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import requests
 
-FILE_ID = "1FyYUWwcV2kr7flcUF9HbDgUB0AJXIyr9"  # ID da planilha no Drive
+FILE_ID = "1WjKXeS7lXkWW8rEFBdLRiBtAWEp-5vUT"  # ID da planilha no Drive
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 
 def enviar_telegram(msg):
