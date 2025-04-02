@@ -1,16 +1,5 @@
-services:
-  - type: cron
-    name: check-modificacao
-    runtime: python
-    repo: https://github.com/SeuUsuario/monitor-render
-    branch: main
-    schedule: */2 * * * *  # A cada 2 minutos
-    buildCommand: ""
-    startCommand: python check_planilha.py
-    envVars:
-      - key: GOOGLE_CREDENTIALS
-        sync: false
-      - key: TELEGRAM_TOKEN
-        sync: false
-      - key: TELEGRAM_CHAT_ID
-        sync: false
+# services:
+#   - type: cron
+#     name: check-modificacao
+#     runtime: python
+#     ...
